@@ -339,9 +339,7 @@ class PLfoldRevisited:
         paired_P = (count_paired / self.num_samples) / h_k
 
         # conditional probability k to be unpaired given l is unpaired
-        cond_unpaired_P = (
-            cond_count_unpaired / window_count_total
-        )
+        cond_unpaired_P = cond_count_unpaired / window_count_total
 
         # joint probability of k and l being unpaired
         unpaired_mx = np.tile(unpaired_P, (len(unpaired_P), 1))
@@ -351,9 +349,7 @@ class PLfoldRevisited:
         ) / np.transpose(np.tile(h_k, (len(h_k), 1)))
 
         # conditional probability k to be paired given l is paired
-        cond_paired_P = (
-            cond_count_paired / window_count_total
-        )
+        cond_paired_P = cond_count_paired / window_count_total
 
         # joint probability that k and l are paired
         paired_mx = np.tile(paired_P, (len(paired_P), 1))
@@ -423,7 +419,7 @@ class PLfoldRevisited:
         unpaired = np.array(pl_data).T.tolist()[1]
         t2 = time.perf_counter()
         print(f"{t2 - t1:0.4f} seconds for RNAPLfold")
-        return unpaired[1:]  # remove leading nan value from RNAlib output
+        return np.array(unpaired[1:])  # remove leading nan value from RNAlib output
 
     def _update_local_folding(self):
         """(Re-)compute (un)paired probabilities and mea structure with local models."""
@@ -532,8 +528,8 @@ class PLfoldRevisited:
 
         except OSError:
             t1 = time.perf_counter()
-            
-            if 'fc_S' not in globals():
+
+            if "fc_S" not in globals():
                 md = RNA.md()
                 md.uniq_ML = 1
                 md.max_bp_span = self.max_bp_span
