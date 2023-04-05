@@ -423,6 +423,50 @@ def difference(dataset, grey=False):
     return df
 
 
+def error_vs_sample_coverage(data, figure_path=None):
+
+    plot_df = pd.DataFrame(
+        data, columns=["sample size", "window size", "diff", "coverage"]
+    )
+
+    fig, axs = plt.subplots(figsize=(8 * cm, 5 * cm), nrows=1, ncols=1)
+
+    i = 0
+    for length, gdf in plot_df.groupby("window size"):
+        gdf.plot.scatter(
+            x="coverage",
+            y="diff",
+            ax=axs,
+            label=str(length),
+            s=8,
+            linewidths=0.5,
+            c=colors[i],
+            marker=markers[i],
+        )
+        i += 1
+    axs.set_xlabel("$W*s$")
+    axs.set_ylabel("mean $\\mid q_k^{exact}-q_k^{sample}\\mid$")
+    axs.spines.right.set_visible(False)
+    axs.spines.top.set_visible(False)
+
+    plt.legend(
+        title="$W$",
+        ncol=3,
+        loc="upper right",
+        labelspacing=0.3,
+        handletextpad=0.5,
+        columnspacing=1,
+        fontsize="small",
+    )
+
+    # axs.set_xlim(0,2800)
+    # axs.set_ylim(0,0.03)
+    # axs.set_xscale('log')
+
+    if figure_path is not None:
+        fig.savefig(figure_path, bbox_inches="tight")
+
+
 def plot_diff_per_samplesize(id, df, diff, figure_path=None, grey=False):
     """
     Plot the difference between pflfold and sampling - PER SAMPLESIZE
@@ -614,31 +658,32 @@ def plot_error_vs_windowsize_boxplot(datasets, figure_path=None, tsv_file=None):
         )
 
 
-def plot_scatter_unpaired(dataset, figure_path=None, tsv_file=None):
+def unpairedP_correlation_local_sampling_vs_RNAfold(
+    dataset, figure_path=None, tsv_file=None
+):
 
     data = {}
-    size = 0.2
     bins = 20
+    data[
+        str(dataset.window_size).zfill(4) + " RNAfold"
+    ] = dataset.global_folding.unpaired_P[1:]
+    data[
+        str(dataset.window_size).zfill(4) + " local sampling"
+    ] = dataset.local_sampling.unpaired_P
 
-    for d in dataset:
-        data[str(d.window_size).zfill(4) + " RNAfold"] = d.global_folding.unpaired_P[1:]
-        data[str(d.window_size).zfill(4) + " RNAPLfold"] = d.local_sampling.unpaired_P
-        data[str(d.window_size).zfill(4) + " size"] = size
-
-    windowsize1 = dataset[0].window_size
-    windowsize2 = dataset[1].window_size
+    windowsize = dataset.window_size
 
     df = pd.DataFrame.from_dict(data)
     df = df.reindex(sorted(df.columns), axis=1)
-    fig = plt.figure(figsize=(18 * cm, 9.6 * cm))
+    fig = plt.figure(figsize=(9.6 * cm, 9.6 * cm))
     plt.rcParams.update(pgf_with_custom_preamble)
 
-    widths = [4, 4, 1]
+    widths = [4, 1]
     heights = [1, 4]
 
-    ### 1. gridspec preparation
+    ### gridspec preparation
     spec = fig.add_gridspec(
-        ncols=3,
+        ncols=2,
         nrows=2,
         width_ratios=widths,
         height_ratios=heights,
@@ -646,28 +691,27 @@ def plot_scatter_unpaired(dataset, figure_path=None, tsv_file=None):
         hspace=0.0001,
     )  # setting spaces
 
-    ### 2. setting axes
+    ### setting axes
     axs = {}
     for i in range(len(heights) * len(widths)):
         axs[i] = fig.add_subplot(spec[i // len(widths), i % len(widths)])
 
-    ### 3. bill_length_mm vs bill_depth_mm
+    ###  q_k (local unpaiired probability) vs p_k (RNA fold with max bp span)
 
-    # 3.2. scatterplot
     df.plot.scatter(
-        x=str(windowsize1).zfill(4) + " RNAPLfold",
-        y=str(windowsize1).zfill(4) + " RNAfold",
+        x=str(windowsize).zfill(4) + " local sampling",
+        y=str(windowsize).zfill(4) + " RNAfold",
         alpha=0.4,
-        ax=axs[3],
+        ax=axs[2],
         s=0.5,
         c="#333333",
     )
-    axs[3].set_ylim(0, 1)
-    axs[3].set_xlim(0, 1)
+    axs[2].set_ylim(0, 1)
+    axs[2].set_xlim(0, 1)
 
-    # 3.3. histogram (bill_length_mm)
+    # histogram q_k
     df.hist(
-        str(windowsize1).zfill(4) + " RNAPLfold",
+        str(windowsize).zfill(4) + " local sampling",
         ax=axs[0],
         bins=bins,
         grid=False,
@@ -681,81 +725,47 @@ def plot_scatter_unpaired(dataset, figure_path=None, tsv_file=None):
     axs[0].spines["top"].set_visible(False)
     axs[0].spines["right"].set_visible(False)
 
-    # 5.. histogram (bill_depth_mm)
+    # histogram p_k
     df.hist(
-        str(windowsize1).zfill(4) + " RNAfold",
-        ax=axs[5],
+        str(windowsize).zfill(4) + " RNAfold",
+        ax=axs[3],
         bins=bins,
         grid=False,
         color="grey",
         orientation="horizontal",
     )
-    axs[5].set_ylim(0, 1)
-    axs[5].set_ylabel("")
-    axs[5].set_yticklabels([])
-    axs[5].spines["bottom"].set_visible(False)
-    axs[5].spines["top"].set_visible(False)
-    axs[5].spines["right"].set_visible(False)
+    axs[3].set_ylim(0, 1)
+    axs[3].set_ylabel("")
+    axs[3].set_yticklabels([])
+    axs[3].spines["bottom"].set_visible(False)
+    axs[3].spines["top"].set_visible(False)
+    axs[3].spines["right"].set_visible(False)
 
-    ### 4. flipper_length_mm vs bill_depth_mm
-    # 4.1. kdeplot
+    # not using axis element 1
+    axs[1].axis("off")
 
-    # 4.2. scatterplot
-    df.plot.scatter(
-        x=str(windowsize2).zfill(4) + " RNAPLfold",
-        y=str(windowsize2).zfill(4) + " RNAfold",
-        alpha=0.4,
-        ax=axs[4],
-        s=0.5,
-        c="#333333",
-    )
-    axs[4].set_ylim(0, 1)
-    axs[4].set_xlim(0, 1)
-
-    # 4.3. histogram (flipper_length_mm)
-    df.hist(
-        str(windowsize2).zfill(4) + " RNAPLfold",
-        ax=axs[1],
-        bins=bins,
-        grid=False,
-        color="grey",
-    )
-
-    axs[1].set_xlim(0, 1)
-    axs[1].set_xlabel("")
-    axs[1].set_xticklabels([])
-    axs[1].spines["left"].set_visible(False)
-    axs[1].spines["top"].set_visible(False)
-    axs[1].spines["right"].set_visible(False)
-
-    axs[2].axis("off")
-
-    # 5.3. redundent labels and titles removal
-    axs[1].set_title("")
+    # remove redundent labels and titles
     axs[0].set_title("")
-    axs[5].set_title("")
+    axs[3].set_title("")
+
+    axs[2].set_yticks([0, 0.5, 1])
+    axs[2].set_xticks([0, 0.5])
 
     axs[3].set_yticks([0, 0.5, 1])
-    axs[3].set_xticks([0, 0.5])
-    axs[4].set_yticks([0, 0.5, 1])
-    axs[4].set_xticks([0, 0.5, 1])
-    axs[5].set_yticks([0, 0.5, 1])
-    axs[5].set_xticks([])
-    axs[1].set_yticks([])
+    axs[3].set_xticks([])
     axs[0].set_yticks([])
 
-    axs[1].set_yticklabels([])
-    axs[1].set_ylabel("")
-    axs[4].set_yticklabels([])
-    axs[4].set_ylabel("")
     axs[0].set_ylabel("")
-    axs[5].set_xlabel("")
+    axs[3].set_xlabel("")
     axs[0].set_yticklabels([])
-    axs[5].set_xticklabels([])
+    axs[3].set_xticklabels([])
 
-    axs[3].set_ylabel("$p_k^{\circ}$")
-    axs[3].set_xlabel("$q_k$; $W=" + str(windowsize1) + "$")
-    axs[4].set_xlabel("$q_k$; $W=" + str(windowsize2) + "$")
+    axs[2].set_ylabel("$p_k^{\circ}$")
+    axs[2].set_xlabel("$q_k$; $W=" + str(windowsize) + "$")
+
+    fig.suptitle(
+        f"{dataset.seq_id}\n max. base pair span: {dataset.max_bp_span}, sample size: {dataset.num_samples}"
+    )
 
     if figure_path != None:
         fig.savefig(figure_path, bbox_inches="tight")
@@ -771,7 +781,7 @@ def get_dist_df(mx):
     return df.groupby("dist").sum()
 
 
-def plot_bp_span_hist(dataset, figure_path=None):
+def bp_span_hist(dataset, figure_path=None):
 
     fig, axs = plt.subplots(figsize=(20 * cm, 15 * cm), nrows=2, ncols=1)
 
@@ -780,15 +790,13 @@ def plot_bp_span_hist(dataset, figure_path=None):
     for d in dataset:
         df1 = get_dist_df(d.global_folding.bp_P)
         df1.rename(
-            columns={
-                "value": "rnafold " + str(d.window_size) + " " + str(d.max_bp_span)
-            },
+            columns={"value": f"RNAfold with max bp span {d.max_bp_span}"},
             inplace=True,
         )
         df2 = get_dist_df(d.local_sampling.bp_P)
         df2.rename(
             columns={
-                "value": "stochastic " + str(d.window_size) + " " + str(d.max_bp_span)
+                "value": f"local sampling: $W$ = {d.window_size}, max_bp_span = {d.max_bp_span}"
             },
             inplace=True,
         )
@@ -797,8 +805,8 @@ def plot_bp_span_hist(dataset, figure_path=None):
         df = df.merge(df2, how="outer", left_index=True, right_index=True)
 
     max_count = df.max().max() * 1.1
-    rnafold_cols = [c for c in df.columns if "rnafold" in c]
-    stochastic_cols = [c for c in df.columns if "stochastic" in c]
+    rnafold_cols = [c for c in df.columns if "RNAfold" in c]
+    stochastic_cols = [c for c in df.columns if "sampling" in c]
     df.plot(y=rnafold_cols, ax=axs[0])
     df.plot(y=stochastic_cols, ax=axs[1])
 
