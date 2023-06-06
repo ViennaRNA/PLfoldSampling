@@ -46,6 +46,7 @@ def plot_unpaired(
     plot_interval_start=None,
     plot_interval_end=None,
     grey=False,
+    plot_len_cm = 15,
 ):
 
     rnafold = dataset.global_folding.unpaired_P
@@ -67,16 +68,16 @@ def plot_unpaired(
 
     plt.rcParams.update(pgf_with_custom_preamble)
 
-    fig, axs = plt.subplots(figsize=(20 * cm, 4 * cm), nrows=1, ncols=1, layout="tight")
+    fig, axs = plt.subplots(figsize=(plot_len_cm * cm, 4 * cm), nrows=1, ncols=1, layout="tight")
 
     plt.rcParams.update(pgf_with_custom_preamble)
 
     if grey:
-        axs.plot(rnafold[1:], c="#000000", alpha=1, label="$p_k^{\circ}$", lw=0.7)
-        axs.plot(stochastic[1:], c="#999999", alpha=1, label="$q_k$", lw=0.7)
+        axs.plot(rnafold, c="#000000", alpha=1, label="$p_k^{\circ}$", lw=0.7)
+        axs.plot(stochastic, c="#999999", alpha=1, label="$q_k$", lw=0.7)
     else:
-        axs.plot(rnafold[1:], c="tab:blue", alpha=1, label="$p_k^{\circ}$", lw=0.7)
-        axs.plot(stochastic[1:], c="tab:orange", alpha=1, label="$q_k$", lw=0.7)
+        axs.plot(rnafold, c="tab:blue", alpha=1, label="$p_k^{\circ}$", lw=0.7)
+        axs.plot(stochastic, c="tab:orange", alpha=1, label="$q_k$", lw=0.7)
 
     axs.legend(loc="right")
     axs.set_xlabel("sequence position $k$")
@@ -173,7 +174,7 @@ def heatmap(
     else:
         vmin = 0
         center = 0
-
+    print('done')
     # get labels
     if sequence is not None:
         labels = [str(e + 1) + "-" + s for e, s in enumerate(sequence)]
@@ -294,15 +295,11 @@ def db_from_bp_list(bp_list, seq_len):
     return "".join(db)
 
 
-def struct_ps(dataset, start, end, annotations=None, figure_path=None, context=False):
+def struct_ps_general(seq, struct, seq_id, start, end, annotations=None, figure_path=None, context=False):
     """
     Plot in PS format for a substructure.
-
-    param dataset: extract sequence, mea_DB
     param start, end: index from 1 to len(sequence)
     """
-    seq = dataset.sequence
-    struct = dataset.local_sampling.mea_DB
 
     if start == 0:
         raise Exception("Sorry, indexing start at 1")
@@ -331,7 +328,7 @@ def struct_ps(dataset, start, end, annotations=None, figure_path=None, context=F
             print(f"end={end} has been changed to {new_end}")
             print(f"i={start} has been changed to {new_start}")
 
-        filename = f"struct_{dataset.seq_id}_{start}_{end}_context.eps"
+        filename = f"struct_{seq_id}_{start}_{end}_context.eps"
 
         new_seq = seq[new_start - 1 : new_end]
         new_struct = struct[new_start - 1 : new_end]
@@ -345,7 +342,7 @@ def struct_ps(dataset, start, end, annotations=None, figure_path=None, context=F
             pair for pair in bp_list if pair[0] >= start - 1 and pair[1] <= end - 1
         ]
         new_struct = db_from_bp_list(bp_list, len(seq))[start - 1 : end]
-        filename = f"struct_{dataset.seq_id}_{start}_{end}.eps"
+        filename = f"struct_{seq_id}_{start}_{end}.eps"
 
     if figure_path is not None:
         filename = figure_path
@@ -363,6 +360,19 @@ def struct_ps(dataset, start, end, annotations=None, figure_path=None, context=F
         RNA.file_PS_rnaplot(new_seq, new_struct, filename)
 
 
+def struct_ps(dataset, start, end, annotations=None, figure_path=None, context=False):
+    """
+    Plot in PS format for a substructure.
+
+    param dataset: extract sequence, mea_DB
+    param start, end: index from 1 to len(sequence)
+    """
+    seq = dataset.sequence
+    struct = dataset.local_sampling.mea_DB
+    seq_id = dataset.seq_id
+    struct_ps_general(seq, struct, seq_id, start, end, annotations=annotations, figure_path=figure_path, context=context)
+        
+        
 def diff_sum(a, b):
     diff = np.abs(a - b).sum()
     return diff
