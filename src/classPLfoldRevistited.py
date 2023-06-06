@@ -553,7 +553,7 @@ class PLfoldRevisited:
 
             t2 = time.perf_counter()
             print(f"{t2 - t1:0.4f} seconds for RNAfold -p")
-            self.global_folding.unpaired_P = unpaired
+            self.global_folding.unpaired_P = unpaired[1:]
             self.global_folding.bp_P = mx
             self._store_data_global()
 
